@@ -1,12 +1,11 @@
 import express, { Request, Response } from "express";
-import cookieParser from "cookie-parser";
 
 const app = express();
 const port = Number(process.env.PORT ?? 3000);
 
 app.use(express.json());
-app.use(cookieParser());
 
+// Códigos de reparación por sistema
 const SYSTEM_CODES: Record<string, string> = {
   navigation: "NAV-01",
   communications: "COM-02",
@@ -16,23 +15,21 @@ const SYSTEM_CODES: Record<string, string> = {
 };
 const SYSTEM_KEYS = Object.keys(SYSTEM_CODES);
 
+// Variable en memoria para el último sistema dañado
+let lastDamagedSystem: string | null = null;
+
 // GET /status
 app.get("/status", (req: Request, res: Response) => {
-  let damaged = req.cookies?.damaged_system;
-  if (!damaged || !SYSTEM_CODES[damaged]) {
-    damaged = SYSTEM_KEYS[Math.floor(Math.random() * SYSTEM_KEYS.length)];
-    res.cookie("damaged_system", damaged, { maxAge: 5 * 60 * 1000, httpOnly: false });
-  }
-  return res.json({ damaged_system: damaged });
+  lastDamagedSystem = SYSTEM_KEYS[Math.floor(Math.random() * SYSTEM_KEYS.length)];
+  return res.json({ damaged_system: lastDamagedSystem });
 });
 
 // GET /repair-bay
 app.get("/repair-bay", (req: Request, res: Response) => {
-  const damaged = req.cookies?.damaged_system as string | undefined;
-  if (!damaged || !SYSTEM_CODES[damaged]) {
+  if (!lastDamagedSystem || !SYSTEM_CODES[lastDamagedSystem]) {
     return res.status(400).send("Error: no damaged system registered. Call /status first.");
   }
-  const code = SYSTEM_CODES[damaged];
+  const code = SYSTEM_CODES[lastDamagedSystem];
   const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -52,7 +49,6 @@ app.post("/teapot", (req: Request, res: Response) => {
   return res.status(418).send("I'm a teapot");
 });
 
-// Arrancar siempre (en Render también)
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
 });
